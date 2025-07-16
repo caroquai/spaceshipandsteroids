@@ -1,8 +1,13 @@
+console.log('=== GAME SCRIPT LOADING ===');
 import Phaser from 'phaser';
 import { GameConfig } from './config/GameConfig.js';
 
+console.log('Starting game initialization...');
+
 // Initialize the game
 const game = new Phaser.Game(GameConfig);
+
+console.log('Game initialized:', game);
 
 // Make game globally accessible for debugging
 window.game = game;

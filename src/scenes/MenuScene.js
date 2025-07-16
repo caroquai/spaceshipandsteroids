@@ -4,6 +4,7 @@ export class MenuScene extends Phaser.Scene {
     }
 
     create() {
+        console.log('MenuScene created');
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         

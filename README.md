@@ -1,6 +1,6 @@
 # Spaceship vs Asteroids
 
-A classic arcade-style shooting game built with **Phaser.js**, **Node.js**, and **WebGL**. Features responsive design for both desktop and mobile devices with modern game development practices.
+Me and my 7 year old Daughter made this classic arcade-style shooting game built with **Phaser.js**, **Node.js**, and **WebGL**. Features responsive design for both desktop and mobile devices with modern game development practices. All development is done via Cursor. What a fun project !
 
 ## 🚀 Features
 

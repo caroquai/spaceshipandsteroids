@@ -27,6 +27,7 @@ export class GameScene extends Phaser.Scene {
         this.avatarContinueButton = null;
         this.avatarActive = false;
         this.explainedPowerUps = new Set();
+        this.gamePaused = false; // Custom pause flag
         
         this.cursors = null;
         this.fireKey = null;
@@ -42,20 +43,33 @@ export class GameScene extends Phaser.Scene {
     }
 
     create() {
-        this.gameData = this.game.registry.get('gameData');
-        this.resetGameData();
+        console.log('=== GAMESCENE CREATE METHOD STARTED ===');
+        try {
+            console.log('GameScene created - starting create method');
+            this.gameData = this.game.registry.get('gameData');
+            console.log('Game data retrieved');
+            this.resetGameData();
+            console.log('Game data reset');
         
         this.setupBackground();
+        console.log('Background setup complete');
         this.setupGroups();
+        console.log('Groups setup complete');
         this.setupUI();
+        console.log('UI setup complete');
         this.setupInput();
+        console.log('Input setup complete');
         this.setupAudio();
+        console.log('Audio setup complete');
         
         this.spawnSpaceship();
+        console.log('Spaceship spawned');
         this.spawnInitialAsteroids();
+        console.log('Initial asteroids spawned');
         
         // Set up collisions AFTER entities are created
         this.setupCollisions();
+        console.log('Collisions setup complete');
         
         // Start UFO spawning from stage 2
         if (this.gameData.level >= 2) {
@@ -64,6 +78,17 @@ export class GameScene extends Phaser.Scene {
         
         // Start background music (only if available)
         this.startBackgroundMusic();
+        console.log('Background music started');
+        
+        console.log('About to set up avatar tutorial...');
+        // Set up avatar tutorial system
+        this.setupAvatarTutorial();
+        console.log('Avatar tutorial setup complete');
+        
+        console.log('GameScene create method completed successfully');
+        } catch (error) {
+            console.error('Error in GameScene create method:', error);
+        }
     }
 
     resetGameData() {
@@ -71,6 +96,10 @@ export class GameScene extends Phaser.Scene {
         this.gameData.lives = 3;
         this.gameData.level = 1;
         this.game.registry.set('gameData', this.gameData);
+        
+        // Reset explained power-ups so tutorial shows for each new game
+        this.explainedPowerUps.clear();
+        console.log('Reset explained power-ups, tutorial will show for new power-ups');
     }
 
     setupBackground() {
@@ -190,9 +219,6 @@ export class GameScene extends Phaser.Scene {
         if (this.sys.game.device.touch) {
             this.setupMobileControls();
         }
-        
-        // Setup avatar tutorial system
-        this.setupAvatarTutorial();
     }
 
     setupPowerUpTimers() {
@@ -253,19 +279,28 @@ export class GameScene extends Phaser.Scene {
     }
 
     setupAvatarTutorial() {
-        const width = this.cameras.main.width;
-        const height = this.cameras.main.height;
+        try {
+            console.log('setupAvatarTutorial called');
+            const width = this.cameras.main.width;
+            const height = this.cameras.main.height;
+            
+            console.log('Creating avatar tutorial UI elements...');
         
         // Create semi-transparent overlay
         this.avatarOverlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.5);
         this.avatarOverlay.setOrigin(0);
-        this.avatarOverlay.setVisible(false);
+        this.avatarOverlay.setVisible(true); // Start visible to test
         this.avatarOverlay.setInteractive();
+        this.avatarOverlay.setDepth(1000); // Set high depth to render on top
+        console.log('Overlay created:', this.avatarOverlay);
+        console.log('this.avatarOverlay after assignment:', this.avatarOverlay);
         
         // Create avatar sprite (will be positioned at bottom)
         this.avatarSprite = this.add.image(width / 2, height + 200, 'lady');
-        this.avatarSprite.setScale(0.8);
+        this.avatarSprite.setScale(0.4);
         this.avatarSprite.setVisible(false);
+        this.avatarSprite.setDepth(1001); // Set high depth to render on top
+        console.log('Avatar sprite created:', this.avatarSprite);
         
         // Create text container
         this.avatarText = this.add.text(width / 2, height - 150, '', {
@@ -276,46 +311,151 @@ export class GameScene extends Phaser.Scene {
             lineSpacing: 8
         }).setOrigin(0.5);
         this.avatarText.setVisible(false);
+        this.avatarText.setDepth(1002); // Set high depth to render on top
         
-        // Create continue button
+        // Create continue button background
+        this.avatarContinueButtonBg = this.add.rectangle(width / 2, height - 50, 200, 50, 0x00ff00, 0.8);
+        this.avatarContinueButtonBg.setStrokeStyle(3, 0xffffff);
+        this.avatarContinueButtonBg.setVisible(false);
+        this.avatarContinueButtonBg.setInteractive();
+        this.avatarContinueButtonBg.setDepth(1003); // Set high depth to render on top
+        
+        // Create continue button text
         this.avatarContinueButton = this.add.text(width / 2, height - 50, 'Continue', {
             fontSize: '24px',
-            fill: '#00ff00',
+            fill: '#000000',
             fontStyle: 'bold',
             align: 'center'
         }).setOrigin(0.5);
         this.avatarContinueButton.setVisible(false);
-        this.avatarContinueButton.setInteractive();
+        this.avatarContinueButton.setDepth(1004); // Set high depth to render on top
+        
+        // Force add all elements to the scene's display list
+        this.add.existing(this.avatarOverlay);
+        this.add.existing(this.avatarSprite);
+        this.add.existing(this.avatarText);
+        this.add.existing(this.avatarContinueButtonBg);
+        this.add.existing(this.avatarContinueButton);
+        
+        console.log('All UI elements explicitly added to scene display list');
+        
+        // Make both button elements interactive
+        this.avatarContinueButtonBg.on('pointerdown', () => {
+            this.hideAvatarTutorial();
+        });
         this.avatarContinueButton.on('pointerdown', () => {
             this.hideAvatarTutorial();
         });
         
+        // Add hover effects
+        this.avatarContinueButtonBg.on('pointerover', () => {
+            this.avatarContinueButtonBg.setFillStyle(0x00ff00, 1);
+            this.avatarContinueButtonBg.setStrokeStyle(3, 0xffff00);
+        });
+        
+        this.avatarContinueButtonBg.on('pointerout', () => {
+            this.avatarContinueButtonBg.setFillStyle(0x00ff00, 0.8);
+            this.avatarContinueButtonBg.setStrokeStyle(3, 0xffffff);
+        });
+        
         // Add pulsing effect to continue button
         this.tweens.add({
-            targets: this.avatarContinueButton,
-            alpha: 0.5,
+            targets: [this.avatarContinueButtonBg, this.avatarContinueButton],
+            scale: 1.05,
             duration: 1000,
             yoyo: true,
             repeat: -1,
             ease: 'Sine.easeInOut'
         });
+        
+        console.log('Avatar tutorial UI elements created successfully');
+        console.log('Final UI elements state:', {
+            avatarOverlay: this.avatarOverlay,
+            avatarSprite: this.avatarSprite,
+            avatarText: this.avatarText,
+            avatarContinueButton: this.avatarContinueButton,
+            avatarContinueButtonBg: this.avatarContinueButtonBg
+        });
+        } catch (error) {
+            console.error('Error in setupAvatarTutorial:', error);
+        }
     }
 
     showAvatarTutorial(powerUpType) {
-        if (this.avatarActive || this.explainedPowerUps.has(powerUpType)) return;
+        console.log(`showAvatarTutorial called with powerUpType: ${powerUpType}`);
+        console.log('Current state:', {
+            avatarActive: this.avatarActive,
+            explainedPowerUps: Array.from(this.explainedPowerUps),
+            hasPowerUpType: this.explainedPowerUps.has(powerUpType)
+        });
         
+        if (this.avatarActive || this.explainedPowerUps.has(powerUpType)) {
+            console.log('Tutorial skipped - already active or already explained');
+            return;
+        }
+        
+        console.log('Setting up avatar tutorial...');
         this.avatarActive = true;
         this.explainedPowerUps.add(powerUpType);
         
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
+        // Show UI elements BEFORE pausing the scene
+        console.log('Showing UI elements before pause...');
+        
         // Show overlay
         this.avatarOverlay.setVisible(true);
+        console.log('Overlay set visible');
+        console.log('Overlay position:', this.avatarOverlay.x, this.avatarOverlay.y);
+        console.log('Overlay size:', this.avatarOverlay.width, this.avatarOverlay.height);
+        console.log('Overlay visible:', this.avatarOverlay.visible);
+        console.log('Overlay alpha:', this.avatarOverlay.alpha);
+        console.log('Overlay depth:', this.avatarOverlay.depth);
         
         // Show avatar with slide-in animation
         this.avatarSprite.setVisible(true);
         this.avatarSprite.setPosition(width / 2, height + 200);
+        console.log('Avatar sprite visible:', this.avatarSprite.visible);
+        console.log('Avatar sprite position:', this.avatarSprite.x, this.avatarSprite.y);
+        console.log('Avatar sprite depth:', this.avatarSprite.depth);
+        
+        // Show text with fade-in
+        this.avatarText.setVisible(true);
+        this.avatarText.setAlpha(0);
+        this.avatarText.setText(this.getPowerUpExplanation(powerUpType));
+        console.log('Avatar text visible:', this.avatarText.visible);
+        console.log('Avatar text position:', this.avatarText.x, this.avatarText.y);
+        console.log('Avatar text depth:', this.avatarText.depth);
+        console.log('Avatar text content:', this.avatarText.text);
+        
+        // Show continue button with delay
+        this.avatarContinueButtonBg.setVisible(true);
+        this.avatarContinueButton.setVisible(true);
+        this.avatarContinueButtonBg.setAlpha(0);
+        this.avatarContinueButton.setAlpha(0);
+        console.log('Continue button visible:', this.avatarContinueButton.visible);
+        console.log('Continue button position:', this.avatarContinueButton.x, this.avatarContinueButton.y);
+        console.log('Continue button depth:', this.avatarContinueButton.depth);
+        console.log('Continue button text:', this.avatarContinueButton.text);
+        
+        console.log('UI elements state after showing:', {
+            avatarOverlay: this.avatarOverlay,
+            avatarSprite: this.avatarSprite,
+            avatarText: this.avatarText,
+            avatarContinueButton: this.avatarContinueButton,
+            avatarContinueButtonBg: this.avatarContinueButtonBg
+        });
+        
+        // Check if elements are in the scene's display list
+        console.log('Display list check:');
+        console.log('Overlay in display list:', this.children.list.includes(this.avatarOverlay));
+        console.log('Avatar sprite in display list:', this.children.list.includes(this.avatarSprite));
+        console.log('Avatar text in display list:', this.children.list.includes(this.avatarText));
+        console.log('Continue button in display list:', this.children.list.includes(this.avatarContinueButton));
+        console.log('Continue button bg in display list:', this.children.list.includes(this.avatarContinueButtonBg));
+        
+        // Add animations AFTER showing elements
         this.tweens.add({
             targets: this.avatarSprite,
             y: height - 100,
@@ -323,10 +463,6 @@ export class GameScene extends Phaser.Scene {
             ease: 'Power2'
         });
         
-        // Show text with fade-in
-        this.avatarText.setVisible(true);
-        this.avatarText.setAlpha(0);
-        this.avatarText.setText(this.getPowerUpExplanation(powerUpType));
         this.tweens.add({
             targets: this.avatarText,
             alpha: 1,
@@ -334,15 +470,20 @@ export class GameScene extends Phaser.Scene {
             delay: 400
         });
         
-        // Show continue button with delay
-        this.avatarContinueButton.setVisible(true);
-        this.avatarContinueButton.setAlpha(0);
         this.tweens.add({
-            targets: this.avatarContinueButton,
+            targets: [this.avatarContinueButtonBg, this.avatarContinueButton],
             alpha: 1,
             duration: 300,
-            delay: 800
+            delay: 800,
+            onComplete: () => {
+                // Game is already paused by avatarActive flag in update method
+                console.log('Continue button animation complete, game paused by avatarActive flag');
+            }
         });
+        
+        // Force a render update to ensure UI elements are visible
+        this.events.emit('render');
+        console.log('Forced render update after showing UI elements');
         
         // Highlight the power-up
         this.highlightPowerUp(powerUpType);
@@ -362,7 +503,7 @@ export class GameScene extends Phaser.Scene {
         
         // Fade out text and button
         this.tweens.add({
-            targets: [this.avatarText, this.avatarContinueButton],
+            targets: [this.avatarText, this.avatarContinueButtonBg, this.avatarContinueButton],
             alpha: 0,
             duration: 300,
             ease: 'Power2'
@@ -378,11 +519,15 @@ export class GameScene extends Phaser.Scene {
                 this.avatarOverlay.setVisible(false);
                 this.avatarSprite.setVisible(false);
                 this.avatarText.setVisible(false);
+                this.avatarContinueButtonBg.setVisible(false);
                 this.avatarContinueButton.setVisible(false);
                 this.avatarActive = false;
                 
                 // Reset overlay alpha
                 this.avatarOverlay.setAlpha(0.5);
+                
+                // Game will resume automatically when avatarActive is set to false
+                console.log('Avatar tutorial hidden, game will resume');
             }
         });
         
@@ -572,6 +717,11 @@ export class GameScene extends Phaser.Scene {
             this.time.delayedCall(500, () => {
                 this.showAvatarTutorial(powerUpType);
             });
+        }
+        
+        // Check for existing power-ups on first spawn
+        if (this.powerUps.getChildren().length === 1) {
+            this.checkExistingPowerUpsForTutorial();
         }
     }
 
@@ -1135,11 +1285,45 @@ export class GameScene extends Phaser.Scene {
     startBackgroundMusic() {
         try {
             // Check if the audio file exists before playing
-            if (this.cache.audio.exists('background')) {
+            if (this.cache.audio.exists('gameMusic')) {
+                this.sound.play('gameMusic', { loop: true, volume: 0.3 });
+            } else if (this.cache.audio.exists('background')) {
+                // Fallback to old background music if available
                 this.sound.play('background', { loop: true, volume: 0.3 });
             }
         } catch (error) {
             console.log('Background music not available, continuing without audio');
+        }
+    }
+
+    checkExistingPowerUpsForTutorial() {
+        console.log('checkExistingPowerUpsForTutorial called');
+        console.log('Power-ups count:', this.powerUps.getChildren().length);
+        
+        // Check if there are any power-ups already on screen that need tutorial
+        const existingPowerUpTypes = new Set();
+        
+        this.powerUps.getChildren().forEach(powerUp => {
+            if (powerUp && powerUp.getType) {
+                const type = powerUp.getType();
+                existingPowerUpTypes.add(type);
+                console.log('Found power-up type:', type);
+            }
+        });
+        
+        console.log('Existing power-up types:', Array.from(existingPowerUpTypes));
+        console.log('Explained power-ups:', Array.from(this.explainedPowerUps));
+        
+        // Show tutorial for any power-up types that haven't been explained yet
+        for (const powerUpType of existingPowerUpTypes) {
+            if (!this.explainedPowerUps.has(powerUpType)) {
+                console.log(`Found existing power-up type: ${powerUpType}, showing tutorial`);
+                // Delay slightly to let the game settle
+                this.time.delayedCall(1000, () => {
+                    this.showAvatarTutorial(powerUpType);
+                });
+                break; // Only show tutorial for the first unexpained power-up type
+            }
         }
     }
 } 

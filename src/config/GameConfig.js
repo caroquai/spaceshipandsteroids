@@ -52,11 +52,17 @@ export const GameConfig = {
         GameOverScene
     ],
     callbacks: {
-        preBoot: function (game) {
+        boot: function (game) {
+            console.log('Boot callback called');
             // Hide loading screen when game starts
             const loadingScreen = document.getElementById('loading-screen');
+            console.log('Loading screen element:', loadingScreen);
             if (loadingScreen) {
+                console.log('Hiding loading screen');
                 loadingScreen.style.display = 'none';
+                console.log('Loading screen display style after hiding:', loadingScreen.style.display);
+            } else {
+                console.log('Loading screen element not found');
             }
         }
     }

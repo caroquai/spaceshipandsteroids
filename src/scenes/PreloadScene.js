@@ -64,11 +64,19 @@ export class PreloadScene extends Phaser.Scene {
         });
         
         this.load.on('complete', () => {
+            console.log('All assets loaded (or failed with fallbacks)');
             progressBar.destroy();
             progressBox.destroy();
             loadingText.destroy();
             percentText.destroy();
             assetText.destroy();
+            
+            // Also hide the HTML loading screen as a fallback
+            const htmlLoadingScreen = document.getElementById('loading-screen');
+            if (htmlLoadingScreen) {
+                console.log('Hiding HTML loading screen from PreloadScene');
+                htmlLoadingScreen.style.display = 'none';
+            }
         });
     }
 
@@ -85,19 +93,28 @@ export class PreloadScene extends Phaser.Scene {
         this.load.image('background', 'assets/sprites/background.png');
         this.load.image('lady', 'assets/sprites/lady.png');
         
-        // Load sounds
+        // Load sounds (optional - game will work without them)
         this.load.audio('shoot', 'assets/sounds/shoot.wav');
         this.load.audio('explosion', 'assets/sounds/explosion.wav');
         this.load.audio('powerup', 'assets/sounds/powerup.wav');
         this.load.audio('gameOver', 'assets/sounds/gameOver.wav');
         this.load.audio('levelUp', 'assets/sounds/levelUp.wav');
         this.load.audio('background', 'assets/sounds/background.mp3');
+        this.load.audio('gameMusic', 'assets/sounds/spaceship_and_beyond.ogg');
         
         // Create fallback graphics if assets fail to load
         this.load.on('loaderror', (file) => {
             console.warn('Failed to load asset:', file.key);
             this.createFallbackAsset(file.key);
         });
+        
+        // Add a timeout to ensure loading completes even if some assets fail
+        setTimeout(() => {
+            if (this.load.isLoading()) {
+                console.log('Loading timeout reached, forcing completion');
+                this.load.emit('complete');
+            }
+        }, 5000); // 5 second timeout
     }
 
     createFallbackAsset(key) {
@@ -145,6 +162,31 @@ export class PreloadScene extends Phaser.Scene {
                 graphics.fillCircle(16, 8, 2);       // Center light
                 graphics.generateTexture('ufo', 32, 24);
                 break;
+            case 'explosion':
+                // Create explosion fallback - expanding circles
+                graphics.fillStyle(0xff6600);
+                graphics.fillCircle(16, 16, 12);
+                graphics.fillStyle(0xffff00);
+                graphics.fillCircle(16, 16, 8);
+                graphics.fillStyle(0xffffff);
+                graphics.fillCircle(16, 16, 4);
+                graphics.generateTexture('explosion', 32, 32);
+                break;
+            case 'background':
+                // Create simple starfield background
+                graphics.fillStyle(0x000011);
+                graphics.fillRect(0, 0, 800, 600);
+                // Add some stars
+                graphics.fillStyle(0xffffff);
+                for (let i = 0; i < 50; i++) {
+                    graphics.fillCircle(
+                        Math.random() * 800,
+                        Math.random() * 600,
+                        Math.random() * 2
+                    );
+                }
+                graphics.generateTexture('background', 800, 600);
+                break;
             case 'lady':
                 // Create lady avatar fallback - simple character silhouette
                 graphics.fillStyle(0xff69b4); // Pink color
@@ -156,12 +198,24 @@ export class PreloadScene extends Phaser.Scene {
                 graphics.fillRect(24, 16, 4, 8); // Right arm
                 graphics.generateTexture('lady', 32, 32);
                 break;
+            default:
+                // For any other missing assets (like sounds), just log and continue
+                console.log('No fallback for asset:', key);
+                break;
         }
         
         graphics.destroy();
     }
 
     create() {
+        // Ensure HTML loading screen is hidden
+        const htmlLoadingScreen = document.getElementById('loading-screen');
+        if (htmlLoadingScreen) {
+            console.log('Final attempt to hide HTML loading screen');
+            htmlLoadingScreen.style.display = 'none';
+        }
+        
+        console.log('PreloadScene complete, starting MenuScene');
         // Start the menu scene
         this.scene.start('MenuScene');
     }
