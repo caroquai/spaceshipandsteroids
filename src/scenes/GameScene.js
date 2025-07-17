@@ -63,9 +63,7 @@ export class GameScene extends Phaser.Scene {
         console.log('Audio setup complete');
         
         this.spawnSpaceship();
-        console.log('Spaceship spawned');
-        this.spawnInitialAsteroids();
-        console.log('Initial asteroids spawned');
+        console.log('Spaceship spawned - entrance animation will start');
         
         // Set up collisions AFTER entities are created
         this.setupCollisions();
@@ -99,7 +97,8 @@ export class GameScene extends Phaser.Scene {
         
         // Reset explained power-ups so tutorial shows for each new game
         this.explainedPowerUps.clear();
-        console.log('Reset explained power-ups, tutorial will show for new power-ups');
+        this.avatarActive = false; // Reset avatar tutorial state
+        console.log('Reset explained power-ups and avatar state, tutorial will show for new power-ups');
     }
 
     setupBackground() {
@@ -261,7 +260,7 @@ export class GameScene extends Phaser.Scene {
         fireButton.setInteractive();
         fireButton.on('pointerdown', () => {
             this.isFireKeyPressed = true;
-            if (this.canFire && !this.spaceship.rapidFireEndTime) {
+            if (this.canFire && this.spaceship && this.spaceship.canControl && !this.spaceship.entranceAnimationActive && !this.spaceship.rapidFireEndTime) {
                 this.spaceship.fire(); // Use spaceship's fire method instead
                 this.canFire = false;
             }
@@ -289,7 +288,7 @@ export class GameScene extends Phaser.Scene {
         // Create semi-transparent overlay
         this.avatarOverlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.5);
         this.avatarOverlay.setOrigin(0);
-        this.avatarOverlay.setVisible(true); // Start visible to test
+        this.avatarOverlay.setVisible(false); // Start invisible to avoid dimming the game
         this.avatarOverlay.setInteractive();
         this.avatarOverlay.setDepth(1000); // Set high depth to render on top
         console.log('Overlay created:', this.avatarOverlay);
@@ -300,7 +299,6 @@ export class GameScene extends Phaser.Scene {
         this.avatarSprite.setScale(0.4);
         this.avatarSprite.setVisible(false);
         this.avatarSprite.setDepth(1001); // Set high depth to render on top
-        console.log('Avatar sprite created:', this.avatarSprite);
         
         // Create text container
         this.avatarText = this.add.text(width / 2, height - 150, '', {
@@ -538,19 +536,19 @@ export class GameScene extends Phaser.Scene {
     getPowerUpExplanation(powerUpType) {
         switch (powerUpType) {
             case 'health':
-                return "❤️ Health Power-up!\n\nThis red heart will restore one life to your ship. Collect it when your health is low to stay in the game longer!";
+                return "❤️ Hey! I'm Skyler! 👋\n\nYou found a health power-up! This red heart restores one life to your ship. Save it for when you're low on health! 💔";
             case 'rapidFire':
-                return "🔥 Rapid Fire Power-up!\n\nThis yellow power-up will make your ship fire bullets automatically at high speed for a limited time. Perfect for clearing waves of asteroids!";
+                return "🔥 OMG! I'm Skyler! 👋\n\nRapid fire power-up! Your ship will fire bullets automatically at high speed. Perfect for clearing asteroid waves! 💪";
             case 'shield':
-                return "🛡️ Shield Power-up!\n\nThis cyan shield will protect your ship from all damage for a short time. You'll see a protective halo around your ship when it's active!";
+                return "🛡️ Hey! Skyler here! 👋\n\nShield power-up! You'll be invincible for a short time with a protective halo around your ship! ✨";
             case 'tripleShot':
-                return "🔱 Triple Shot Power-up!\n\nThis purple power-up will make your ship fire three bullets in a spread pattern instead of one. Great for hitting multiple targets!";
+                return "🔱 Hello! I'm Skyler! 👋\n\nTriple shot power-up! Fire three bullets in a spread pattern instead of one. Great for hitting multiple targets! 🔫";
             case 'speedBoost':
-                return "🛼 Speed Boost Power-up!\n\nThis green power-up will increase your ship's movement speed for a short time. Use it to dodge asteroids more easily!";
+                return "🛼 Yo! Skyler here! 👋\n\nSpeed boost power-up! Your ship will zoom around faster, perfect for dodging asteroids! 😄";
             case 'strongLaser':
-                return "💪 Strong Laser Power-up!\n\nThis orange power-up will make your bullets much more powerful. They can pass through small and medium asteroids and destroy large ones instantly!";
+                return "💪 Hey! I'm Skyler! 👋\n\nStrong laser power-up! Your bullets can punch through small asteroids and destroy large ones instantly! 💥";
             default:
-                return "Power-up collected!";
+                return "Hey! Skyler here! 👋\n\nYou found a mysterious power-up! Even I'm not sure what this one does! ✨";
         }
     }
 
@@ -604,7 +602,7 @@ export class GameScene extends Phaser.Scene {
         // Set up fire events
         this.input.keyboard.on('keydown-SPACE', () => {
             this.isFireKeyPressed = true;
-            if (this.canFire && !this.spaceship.rapidFireEndTime) {
+            if (this.canFire && this.spaceship && this.spaceship.canControl && !this.spaceship.entranceAnimationActive && !this.spaceship.rapidFireEndTime) {
                 this.spaceship.fire(); // Use spaceship's fire method instead
                 this.canFire = false;
             }
@@ -642,14 +640,225 @@ export class GameScene extends Phaser.Scene {
 
     setupAudio() {
         // Audio is already set up in BootScene
+        console.log('Audio setup - checking audio context...');
+        console.log('Sound manager state:', this.sound);
+        console.log('Available sounds in cache:', Object.keys(this.cache.audio.entries));
+        
+        // Test if audio is working by playing a short sound
+        this.time.delayedCall(2000, () => {
+            console.log('Testing audio system with a test sound...');
+            this.playSound('laser_standard', 0.05);
+        });
     }
 
     spawnSpaceship() {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        this.spaceship = new Spaceship(this, width / 2, height - 100);
-        // Physics is already set up in the Spaceship constructor
+        // Create spaceship at bottom of screen (off-screen)
+        this.spaceship = new Spaceship(this, width / 2, height + 100);
+        
+        // Disable player control during entrance animation
+        this.spaceship.entranceAnimationActive = true;
+        this.spaceship.canControl = false;
+        
+        // Set initial velocity (fast upward movement)
+        this.spaceship.setVelocity(0, -400);
+        
+        // Create rocket burst effect
+        this.createRocketBurstEffect();
+        
+        // Start entrance animation
+        this.startSpaceshipEntrance();
+    }
+
+    createRocketBurstEffect() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        // Create multiple rocket burst particles
+        for (let i = 0; i < 15; i++) {
+            const particle = this.add.circle(
+                width / 2 + Phaser.Math.Between(-20, 20),
+                height + 80 + Phaser.Math.Between(0, 40),
+                Phaser.Math.FloatBetween(2, 6),
+                0xff6600
+            );
+            
+            // Add glow effect
+            particle.setStrokeStyle(2, 0xffff00);
+            
+            // Animate particle
+            this.tweens.add({
+                targets: particle,
+                y: height + 200,
+                x: particle.x + Phaser.Math.Between(-30, 30),
+                scale: 0,
+                alpha: 0,
+                duration: Phaser.Math.Between(300, 600),
+                ease: 'Power2',
+                onComplete: () => {
+                    if (particle && particle.active) {
+                        particle.destroy();
+                    }
+                }
+            });
+        }
+        
+        // Create additional smaller particles for more intense effect
+        for (let i = 0; i < 25; i++) {
+            const smallParticle = this.add.circle(
+                width / 2 + Phaser.Math.Between(-15, 15),
+                height + 90 + Phaser.Math.Between(0, 30),
+                Phaser.Math.FloatBetween(1, 3),
+                0xffff00
+            );
+            
+            this.tweens.add({
+                targets: smallParticle,
+                y: height + 150,
+                x: smallParticle.x + Phaser.Math.Between(-20, 20),
+                scale: 0,
+                alpha: 0,
+                duration: Phaser.Math.Between(200, 400),
+                ease: 'Power2',
+                onComplete: () => {
+                    if (smallParticle && smallParticle.active) {
+                        smallParticle.destroy();
+                    }
+                }
+            });
+        }
+    }
+
+    startSpaceshipEntrance() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const targetY = height - 100; // Final position
+        
+        // Create continuous rocket burst effect during movement
+        const rocketBurstTimer = this.time.addEvent({
+            delay: 100,
+            callback: () => {
+                if (this.spaceship && this.spaceship.entranceAnimationActive) {
+                    this.createContinuousRocketBurst();
+                }
+            },
+            loop: true
+        });
+        
+        // Main entrance animation
+        this.tweens.add({
+            targets: this.spaceship,
+            y: targetY,
+            duration: 3000, // 3 seconds total
+            ease: 'Power2',
+            onUpdate: (tween) => {
+                // Gradually slow down the ship
+                const progress = tween.progress;
+                const currentVelocity = -400 * (1 - progress * 0.8); // Slow down to 20% of initial speed
+                this.spaceship.setVelocity(0, currentVelocity);
+            },
+            onComplete: () => {
+                // Stop the ship
+                this.spaceship.setVelocity(0, 0);
+                
+                // Stop rocket burst effect
+                rocketBurstTimer.destroy();
+                
+                // Create final landing effect
+                this.createLandingEffect();
+                
+                // Enable player control
+                this.spaceship.entranceAnimationActive = false;
+                this.spaceship.canControl = true;
+                
+                // Start spawning asteroids and other game elements
+                this.spawnInitialAsteroids();
+                
+                console.log('Spaceship entrance animation complete - player control enabled');
+            }
+        });
+    }
+
+    createContinuousRocketBurst() {
+        if (!this.spaceship) return;
+        
+        // Create rocket burst particles behind the ship
+        for (let i = 0; i < 3; i++) {
+            const particle = this.add.circle(
+                this.spaceship.x + Phaser.Math.Between(-8, 8),
+                this.spaceship.y + 20 + Phaser.Math.Between(0, 10),
+                Phaser.Math.FloatBetween(1, 3),
+                0xff6600
+            );
+            
+            this.tweens.add({
+                targets: particle,
+                y: particle.y + 30,
+                x: particle.x + Phaser.Math.Between(-5, 5),
+                scale: 0,
+                alpha: 0,
+                duration: 200,
+                ease: 'Power2',
+                onComplete: () => {
+                    if (particle && particle.active) {
+                        particle.destroy();
+                    }
+                }
+            });
+        }
+    }
+
+    createLandingEffect() {
+        if (!this.spaceship) return;
+        
+        // Create landing impact effect
+        for (let i = 0; i < 20; i++) {
+            const impactParticle = this.add.circle(
+                this.spaceship.x + Phaser.Math.Between(-25, 25),
+                this.spaceship.y + 15 + Phaser.Math.Between(0, 20),
+                Phaser.Math.FloatBetween(1, 4),
+                0x00ffff
+            );
+            
+            this.tweens.add({
+                targets: impactParticle,
+                y: impactParticle.y + Phaser.Math.Between(20, 40),
+                x: impactParticle.x + Phaser.Math.Between(-15, 15),
+                scale: 0,
+                alpha: 0,
+                duration: Phaser.Math.Between(300, 600),
+                ease: 'Power2',
+                onComplete: () => {
+                    if (impactParticle && impactParticle.active) {
+                        impactParticle.destroy();
+                    }
+                }
+            });
+        }
+        
+        // Create a brief flash effect around the ship
+        const flash = this.add.circle(
+            this.spaceship.x,
+            this.spaceship.y,
+            40,
+            0x00ffff,
+            0.3
+        );
+        
+        this.tweens.add({
+            targets: flash,
+            scale: 2,
+            alpha: 0,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                if (flash && flash.active) {
+                    flash.destroy();
+                }
+            }
+        });
     }
 
     spawnInitialAsteroids() {
@@ -710,8 +919,31 @@ export class GameScene extends Phaser.Scene {
         const powerUp = new PowerUp(this, x, y);
         this.powerUps.add(powerUp);
         
-        // Show avatar tutorial for new power-up types
+        // Get power-up type
         const powerUpType = powerUp.getType();
+        
+        // Check if this power-up type has been explained before
+        if (this.explainedPowerUps.has(powerUpType)) {
+            // Play item_appear sound for subsequent appearances
+            this.playSound('item_appear', 0.6);
+        } else {
+            // Play avatar tutorial sound for first appearance
+            if (powerUpType === 'health') {
+                this.playSound('skyler_heart', 0.8);
+            } else if (powerUpType === 'rapidFire') {
+                this.playSound('skyler_rapidfire', 0.8);
+            } else if (powerUpType === 'shield') {
+                this.playSound('skyler_shield', 0.8);
+            } else if (powerUpType === 'tripleShot') {
+                this.playSound('skyler_trippleshot', 0.8);
+            } else if (powerUpType === 'speedBoost') {
+                this.playSound('skyler_speed', 0.8);
+            } else if (powerUpType === 'strongLaser') {
+                this.playSound('skyler_stronglaser', 0.8);
+            }
+        }
+        
+        // Show avatar tutorial for new power-up types
         if (!this.explainedPowerUps.has(powerUpType)) {
             // Delay the tutorial slightly to let the power-up appear first
             this.time.delayedCall(500, () => {
@@ -731,19 +963,9 @@ export class GameScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // Only spawn UFOs with left to right movement
-        let x, y;
-        
-        // Randomly choose left or right side to spawn from
-        if (Math.random() < 0.5) {
-            // Spawn from left side
-            x = -50;
-            y = Phaser.Math.Between(50, height - 50);
-        } else {
-            // Spawn from right side
-            x = width + 50;
-            y = Phaser.Math.Between(50, height - 50);
-        }
+        // Spawn UFOs from top of screen for zig-zag movement
+        const x = Phaser.Math.Between(50, width - 50);
+        const y = -50; // Start above the screen
         
         const ufo = new UFO(this, x, y);
         this.ufos.add(ufo);
@@ -753,11 +975,39 @@ export class GameScene extends Phaser.Scene {
 
     playSound(key, volume = 1.0) {
         try {
+            console.log(`Attempting to play sound: ${key} at volume ${volume}`);
             if (this.cache.audio.exists(key)) {
-                this.sound.play(key, { volume });
+                console.log(`Sound ${key} exists in cache, playing...`);
+                const sound = this.sound.play(key, { volume });
+                if (sound) {
+                    sound.once('complete', () => {
+                        console.log(`Sound ${key} completed playing`);
+                    });
+                    sound.once('error', (error) => {
+                        console.log(`Sound ${key} error:`, error);
+                    });
+                }
+            } else {
+                console.log(`Sound ${key} not found in cache`);
             }
         } catch (error) {
-            console.log(`Audio file '${key}' not available`);
+            console.log(`Audio file '${key}' not available:`, error);
+        }
+    }
+
+    playAsteroidBlastSound(size) {
+        switch (size) {
+            case 'large':
+                this.playSound('asteroid_large_blast', 0.6);
+                break;
+            case 'medium':
+                this.playSound('asteroid_medium_blast', 0.5);
+                break;
+            case 'small':
+                this.playSound('asteroid_small_blast', 0.4);
+                break;
+            default:
+                this.playSound('explosion', 0.4);
         }
     }
 
@@ -800,7 +1050,13 @@ export class GameScene extends Phaser.Scene {
             this.ufoSpawnTimer = 0;
             
             // Increase UFO spawn frequency with level
-            this.ufoSpawnInterval = Math.max(5000, 10000 - (this.gameData.level - 2) * 500);
+            if (this.gameData.level >= 4) {
+                // More aggressive spawn rate after stage 4
+                this.ufoSpawnInterval = Math.max(2000, 8000 - (this.gameData.level - 4) * 800);
+            } else {
+                // Normal spawn rate for stages 2-3
+                this.ufoSpawnInterval = Math.max(5000, 10000 - (this.gameData.level - 2) * 500);
+            }
         }
         
         // Update all asteroids for rotation
@@ -840,14 +1096,14 @@ export class GameScene extends Phaser.Scene {
         // Update UI
         this.updateUI();
         
-        // Check game over
-        if (this.gameData.lives <= 0) {
-            this.gameOver();
-        }
+        // Game over is handled in collision handlers to ensure sound plays at the right time
     }
 
     handleInput() {
         if (!this.spaceship || this.spaceship.isDead) return;
+        
+        // Don't handle input during entrance animation
+        if (this.spaceship.entranceAnimationActive || !this.spaceship.canControl) return;
         
         let velocityX = 0;
         let velocityY = 0;
@@ -871,6 +1127,9 @@ export class GameScene extends Phaser.Scene {
 
     handleAutoFire(time, delta) {
         if (!this.spaceship || this.spaceship.isDead) return;
+        
+        // Don't auto-fire during entrance animation
+        if (this.spaceship.entranceAnimationActive || !this.spaceship.canControl) return;
         
         // Check if rapid fire is active
         if (this.spaceship.rapidFireEndTime && this.spaceship.rapidFireEndTime > time) {
@@ -958,10 +1217,13 @@ export class GameScene extends Phaser.Scene {
         this.gameData.lives = spaceship.getHealth();
         this.game.registry.set('gameData', this.gameData);
         
-        this.playSound('explosion', 0.6);
+        console.log(`Ship hit by asteroid! Lives remaining: ${this.gameData.lives}`);
+        
+        this.playSound('blast', 0.6);
         this.createExplosion(spaceship.x, spaceship.y);
         
         if (this.gameData.lives <= 0) {
+            this.playSound('ship_destroyed', 0.7);
             this.gameOver();
         }
     }
@@ -982,7 +1244,8 @@ export class GameScene extends Phaser.Scene {
                 this.gameData.score += asteroid.getScoreValue();
                 this.game.registry.set('gameData', this.gameData);
                 
-                this.playSound('explosion', 0.4);
+                // Play different blast sound based on asteroid size
+                this.playAsteroidBlastSound(asteroid.size);
                 this.createExplosion(asteroid.x, asteroid.y);
                 
                 // Check for level up
@@ -1009,7 +1272,8 @@ export class GameScene extends Phaser.Scene {
                     this.gameData.score += asteroid.getScoreValue();
                     this.game.registry.set('gameData', this.gameData);
                     
-                    this.playSound('explosion', 0.4);
+                    // Play different blast sound based on asteroid size
+                    this.playAsteroidBlastSound(asteroid.size);
                     this.createExplosion(asteroid.x, asteroid.y);
                     
                     // Check for level up
@@ -1032,7 +1296,8 @@ export class GameScene extends Phaser.Scene {
                 this.gameData.score += asteroid.getScoreValue();
                 this.game.registry.set('gameData', this.gameData);
                 
-                this.playSound('explosion', 0.4);
+                // Play different blast sound based on asteroid size
+                this.playAsteroidBlastSound(asteroid.size);
                 this.createExplosion(asteroid.x, asteroid.y);
                 
                 // Check for level up
@@ -1052,7 +1317,7 @@ export class GameScene extends Phaser.Scene {
         
         powerUp.apply(spaceship);
         
-        this.playSound('powerup', 0.5);
+        this.playSound('item_collected', 0.6);
         this.createPowerUpEffect(powerUpX, powerUpY);
     }
 
@@ -1075,10 +1340,13 @@ export class GameScene extends Phaser.Scene {
         this.gameData.lives = spaceship.getHealth();
         this.game.registry.set('gameData', this.gameData);
         
-        this.playSound('explosion', 0.6);
+        console.log(`Ship hit by UFO! Lives remaining: ${this.gameData.lives}`);
+        
+        this.playSound('blast', 0.6);
         this.createExplosion(spaceship.x, spaceship.y);
         
         if (this.gameData.lives <= 0) {
+            this.playSound('ship_destroyed', 0.7);
             this.gameOver();
         }
     }
@@ -1095,7 +1363,8 @@ export class GameScene extends Phaser.Scene {
             this.gameData.score += ufo.getScoreValue();
             this.game.registry.set('gameData', this.gameData);
             
-            this.playSound('explosion', 0.4);
+            // Play UFO blast sound
+            this.playSound('ufo_blast', 0.5);
             this.createExplosion(ufo.x, ufo.y);
             
             // Check for level up
@@ -1111,7 +1380,8 @@ export class GameScene extends Phaser.Scene {
                 this.gameData.score += ufo.getScoreValue();
                 this.game.registry.set('gameData', this.gameData);
                 
-                this.playSound('explosion', 0.4);
+                // Play UFO blast sound
+                this.playSound('ufo_blast', 0.5);
                 this.createExplosion(ufo.x, ufo.y);
                 
                 // Check for level up
@@ -1221,11 +1491,10 @@ export class GameScene extends Phaser.Scene {
         // Increase difficulty
         this.asteroidSpawnInterval = Math.max(500, this.asteroidSpawnInterval - 100);
         
-        // Clear existing asteroids and spawn new ones
-        this.asteroids.clear(true, true);
-        this.spawnInitialAsteroids();
+        // Smooth stage transition instead of clearing everything
+        this.startSmoothStageTransition();
         
-        // Clear UFOs on level up
+        // Clear UFOs on level up (these can be cleared immediately)
         if (this.ufos) {
             this.ufos.clear(true, true);
         }
@@ -1237,6 +1506,140 @@ export class GameScene extends Phaser.Scene {
         
         // Show level up effect
         this.createLevelUpEffect();
+    }
+
+    startSmoothStageTransition() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        // Get existing asteroids
+        const existingAsteroids = this.asteroids.getChildren();
+        
+        // Phase 1: Gradually fade out existing asteroids (1.5 seconds)
+        existingAsteroids.forEach((asteroid, index) => {
+            // Stagger the fade out for a wave effect
+            const delay = (index / existingAsteroids.length) * 1500;
+            
+            this.time.delayedCall(delay, () => {
+                if (asteroid && asteroid.active) {
+                    // Create fade out effect
+                    this.tweens.add({
+                        targets: asteroid,
+                        alpha: 0,
+                        scale: 0.5,
+                        duration: 800,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            if (asteroid && asteroid.active) {
+                                asteroid.destroy();
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        
+        // Phase 2: Start spawning new asteroids after a brief delay (0.5 seconds)
+        this.time.delayedCall(500, () => {
+            this.spawnNewStageAsteroids();
+        });
+    }
+
+    spawnNewStageAsteroids() {
+        const count = 5 + Math.floor(this.gameData.level / 2);
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        // Spawn new asteroids with staggered timing and fade-in effects
+        for (let i = 0; i < count; i++) {
+            const delay = i * 200; // Stagger spawns by 200ms
+            
+            this.time.delayedCall(delay, () => {
+                this.spawnAsteroidWithEffect();
+            });
+        }
+    }
+
+    spawnAsteroidWithEffect() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        let x, y;
+        const side = Phaser.Math.Between(0, 2); // Only 3 sides: top, left, right
+        
+        switch (side) {
+            case 0: // Top
+                x = Phaser.Math.Between(0, width);
+                y = -50;
+                break;
+            case 1: // Right
+                x = width + 50;
+                y = Phaser.Math.Between(0, height);
+                break;
+            case 2: // Left
+                x = -50;
+                y = Phaser.Math.Between(0, height);
+                break;
+        }
+        
+        const sizes = ['large', 'medium', 'small'];
+        const size = sizes[Phaser.Math.Between(0, 2)];
+        
+        const asteroid = new Asteroid(this, x, y, size);
+        this.asteroids.add(asteroid);
+        
+        // Start with 0 alpha and scale for fade-in effect
+        asteroid.setAlpha(0);
+        asteroid.setScale(0.3);
+        
+        // Set velocity towards center
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const angle = Phaser.Math.Angle.Between(x, y, centerX, centerY);
+        const speed = Phaser.Math.Between(50, 150) * (1 + this.gameData.level * 0.1);
+        
+        asteroid.setVelocity(
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed
+        );
+        
+        // Create fade-in and scale effect
+        this.tweens.add({
+            targets: asteroid,
+            alpha: 1,
+            scale: 1,
+            duration: 600,
+            ease: 'Power2',
+            onComplete: () => {
+                // Create a subtle glow effect when fully visible
+                this.createAsteroidGlowEffect(asteroid);
+            }
+        });
+    }
+
+    createAsteroidGlowEffect(asteroid) {
+        // Create a subtle glow effect around the asteroid
+        const glow = this.add.circle(
+            asteroid.x,
+            asteroid.y,
+            asteroid.radius + 5,
+            0xffffff,
+            0.2
+        );
+        
+        // Make the glow follow the asteroid
+        this.tweens.add({
+            targets: glow,
+            scale: 1.2,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power2',
+            onComplete: () => {
+                if (glow && glow.active) {
+                    glow.destroy();
+                }
+            }
+        });
     }
 
     createLevelUpEffect() {
@@ -1263,6 +1666,103 @@ export class GameScene extends Phaser.Scene {
         });
     }
 
+    createFireworksEffect() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        // Create multiple firework bursts across the screen
+        const fireworkPositions = [
+            { x: width * 0.2, y: height * 0.3 },
+            { x: width * 0.8, y: height * 0.4 },
+            { x: width * 0.5, y: height * 0.6 },
+            { x: width * 0.3, y: height * 0.7 },
+            { x: width * 0.7, y: height * 0.5 }
+        ];
+        
+        // Create firework bursts with different colors
+        const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xff8800, 0x8800ff];
+        
+        fireworkPositions.forEach((pos, index) => {
+            // Delay each firework burst
+            this.time.delayedCall(index * 200, () => {
+                this.createFireworkBurst(pos.x, pos.y, colors[index % colors.length]);
+            });
+        });
+        
+        // Create additional random firework bursts throughout the 3 seconds
+        for (let i = 0; i < 8; i++) {
+            this.time.delayedCall(500 + i * 300, () => {
+                const randomX = Phaser.Math.Between(50, width - 50);
+                const randomY = Phaser.Math.Between(50, height - 50);
+                const randomColor = colors[Phaser.Math.Between(0, colors.length - 1)];
+                this.createFireworkBurst(randomX, randomY, randomColor);
+            });
+        }
+    }
+
+    createFireworkBurst(x, y, color) {
+        // Create the initial firework rocket
+        const rocket = this.add.circle(x, y, 3, color);
+        
+        // Animate the rocket shooting up
+        this.tweens.add({
+            targets: rocket,
+            y: y - 100,
+            duration: 500,
+            ease: 'Power2',
+            onComplete: () => {
+                rocket.destroy();
+                this.createFireworkExplosion(x, y - 100, color);
+            }
+        });
+    }
+
+    createFireworkExplosion(x, y, color) {
+        // Create multiple particles for the explosion
+        const particleCount = 20;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (i / particleCount) * Math.PI * 2;
+            const distance = Phaser.Math.Between(30, 80);
+            const particleX = x + Math.cos(angle) * distance;
+            const particleY = y + Math.sin(angle) * distance;
+            
+            const particle = this.add.circle(
+                x,
+                y,
+                Phaser.Math.FloatBetween(2, 4),
+                color
+            );
+            
+            // Animate particle expanding outward
+            this.tweens.add({
+                targets: particle,
+                x: particleX,
+                y: particleY,
+                scale: 0,
+                alpha: 0,
+                duration: 1000,
+                ease: 'Power2',
+                onComplete: () => {
+                    particle.destroy();
+                }
+            });
+        }
+        
+        // Create a bright flash at the explosion center
+        const flash = this.add.circle(x, y, 20, 0xffffff, 0.8);
+        this.tweens.add({
+            targets: flash,
+            scale: 2,
+            alpha: 0,
+            duration: 300,
+            ease: 'Power2',
+            onComplete: () => {
+                flash.destroy();
+            }
+        });
+    }
+
     gameOver() {
         // Save high score
         if (this.gameData.score > this.gameData.highScore) {
@@ -1276,10 +1776,39 @@ export class GameScene extends Phaser.Scene {
         
         this.game.registry.set('gameData', this.gameData);
         
-        this.playSound('gameOver', 0.7);
+        // Stop all game sounds except background music
+        // Note: game over sound is already playing from collision handler
         this.sound.stopAll();
         
-        this.scene.start('GameOverScene');
+        // Create fireworks effect
+        this.createFireworksEffect();
+        
+        // Show "GAME OVER" text with fireworks
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        const gameOverText = this.add.text(width / 2, height / 2, 'GAME OVER', {
+            fontSize: '64px',
+            fill: '#ff0000',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        gameOverText.setShadow(0, 0, 15, '#ff0000', true);
+        
+        // Animate the game over text
+        this.tweens.add({
+            targets: gameOverText,
+            scale: 1.2,
+            duration: 1500,
+            yoyo: true,
+            repeat: 1,
+            ease: 'Sine.easeInOut'
+        });
+        
+        // Wait 3 seconds, then transition to game over scene
+        this.time.delayedCall(3000, () => {
+            this.scene.start('GameOverScene');
+        });
     }
 
     startBackgroundMusic() {

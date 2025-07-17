@@ -50,18 +50,26 @@ export class PowerUp extends Phaser.Physics.Arcade.Sprite {
     }
     
     createEmojiIndicator() {
-        const emoji = this.scene.add.text(this.x, this.y - 20, this.getEmojiForType(), {
-            fontSize: '24px',
-            fontFamily: 'Arial, sans-serif'
-        }).setOrigin(0.5);
+        let indicator;
         
-        // Make emoji follow the power-up
-        this.emojiIndicator = emoji;
+        // Use image for speed boost, emoji for others
+        if (this.type === 'speedBoost') {
+            indicator = this.scene.add.image(this.x, this.y - 20, 'item_speed');
+            indicator.setScale(0.5); // Scale down the image
+        } else {
+            indicator = this.scene.add.text(this.x, this.y - 20, this.getEmojiForType(), {
+                fontSize: '24px',
+                fontFamily: 'Arial, sans-serif'
+            }).setOrigin(0.5);
+        }
+        
+        // Make indicator follow the power-up
+        this.emojiIndicator = indicator;
         
         // Add floating animation
         this.scene.tweens.add({
-            targets: emoji,
-            y: emoji.y - 5,
+            targets: indicator,
+            y: indicator.y - 5,
             duration: 1000,
             yoyo: true,
             repeat: -1,

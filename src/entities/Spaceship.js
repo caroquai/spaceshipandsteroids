@@ -12,13 +12,17 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
         this.invulnerabilityTime = 1000; // Reduced from 2000ms to 1000ms (1 second)
         this.invulnerabilityTimer = 0;
         
-            // Movement
-    this.maxSpeed = 200;
-    this.baseMaxSpeed = 200;
-    this.acceleration = 400;
-    this.friction = 0.95;
+        // Control flags for entrance animation
+        this.entranceAnimationActive = false;
+        this.canControl = true;
         
-                    // Shooting
+        // Movement
+        this.maxSpeed = 200;
+        this.baseMaxSpeed = 200;
+        this.acceleration = 400;
+        this.friction = 0.95;
+        
+        // Shooting
         this.fireRate = 200; // milliseconds
         this.lastFireTime = 0;
         this.bulletSpeed = 400;
@@ -63,18 +67,23 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
             }
         }
 
-        // Update engine trail
-        this.engineTrailTimer += delta;
-        if (this.engineTrailTimer >= this.engineTrailInterval) {
-            this.createEngineTrail();
-            this.engineTrailTimer = 0;
-        }
+        // Only update engine trail and apply friction if not in entrance animation
+        if (!this.entranceAnimationActive) {
+            // Update engine trail
+            this.engineTrailTimer += delta;
+            if (this.engineTrailTimer >= this.engineTrailInterval) {
+                this.createEngineTrail();
+                this.engineTrailTimer = 0;
+            }
 
-        // Apply friction
-        this.setVelocity(
-            this.body.velocity.x * this.friction,
-            this.body.velocity.y * this.friction
-        );
+            // Apply friction only when player can control
+            if (this.canControl) {
+                this.setVelocity(
+                    this.body.velocity.x * this.friction,
+                    this.body.velocity.y * this.friction
+                );
+            }
+        }
         
         // Update power-up visual effects
         this.updatePowerUpVisuals(time);
@@ -231,8 +240,12 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
         // Set bullet velocity
         bullet.setVelocity(0, -this.bulletSpeed);
         
-        // Play sound safely
-        this.playSound('shoot', 0.5);
+        // Play different laser sound based on power-up status
+        if (this.strongLaserActive) {
+            this.playSound('laser_strong', 0.6);
+        } else {
+            this.playSound('laser_normal', 0.25);
+        }
     }
 
     fireTripleShot() {
@@ -281,8 +294,12 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
             bullet.setVelocity(velocityX, velocityY);
         });
         
-        // Play sound safely
-        this.playSound('shoot', 0.5);
+        // Play different laser sound based on power-up status
+        if (this.strongLaserActive) {
+            this.playSound('laser_strong', 0.6);
+        } else {
+            this.playSound('laser_triple', 0.5);
+        }
     }
 
     playSound(key, volume = 1.0) {
@@ -316,8 +333,6 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
         });
     }
 
-
-
     // Power-up effects
     activateRapidFire(duration = 20000) {
         const originalFireRate = this.fireRate;
@@ -331,11 +346,14 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
     }
 
     activateShield(duration = 20000) {
+        const wasShieldActive = this.shieldActive;
         this.shieldActive = true;
         this.shieldEndTime = this.scene.time.now + duration;
         
-        // Create shield halo effect
-        this.createShieldHalo();
+        // Only create shield halo if one doesn't already exist
+        if (!wasShieldActive) {
+            this.createShieldHalo();
+        }
         
         this.scene.time.delayedCall(duration, () => {
             this.shieldActive = false;
@@ -510,8 +528,6 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
             });
         }
     }
-
-
 
     createSpeedBoostEffect() {
         // Create speed lines effect

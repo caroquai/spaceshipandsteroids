@@ -92,15 +92,29 @@ export class PreloadScene extends Phaser.Scene {
         this.load.image('explosion', 'assets/sprites/explosion.png');
         this.load.image('background', 'assets/sprites/background.png');
         this.load.image('lady', 'assets/sprites/lady.png');
+        this.load.image('item_speed', 'assets/sprites/item_speed.png');
         
         // Load sounds (optional - game will work without them)
-        this.load.audio('shoot', 'assets/sounds/shoot.wav');
-        this.load.audio('explosion', 'assets/sounds/explosion.wav');
-        this.load.audio('powerup', 'assets/sounds/powerup.wav');
-        this.load.audio('gameOver', 'assets/sounds/gameOver.wav');
-        this.load.audio('levelUp', 'assets/sounds/levelUp.wav');
-        this.load.audio('background', 'assets/sounds/background.mp3');
+        this.load.audio('laser_normal', 'assets/sounds/laser_standard.ogg');
+        this.load.audio('laser_triple', 'assets/sounds/laser_triple.ogg');
+        this.load.audio('laser_strong', 'assets/sounds/laser_strong.ogg');
+        this.load.audio('asteroid_small_blast', 'assets/sounds/asteroid_small_blast.ogg');
+        this.load.audio('asteroid_medium_blast', 'assets/sounds/asteroid_medium_blast.ogg');
+        this.load.audio('asteroid_large_blast', 'assets/sounds/asteroid_large_blast.ogg');
+        this.load.audio('ufo_blast', 'assets/sounds/ufo_blast.ogg');
+        this.load.audio('skyler_heart', 'assets/sounds/skyler_heart.ogg');
+        this.load.audio('skyler_rapidfire', 'assets/sounds/skyler_rapidfire.ogg');
+        this.load.audio('skyler_shield', 'assets/sounds/skyler_shield.ogg');
+        this.load.audio('skyler_trippleshot', 'assets/sounds/skyler_trippleshot.ogg');
+        this.load.audio('skyler_speed', 'assets/sounds/skyler_speed.ogg');
+        this.load.audio('skyler_stronglaser', 'assets/sounds/skyler_stronglaser.ogg');
+        this.load.audio('gameOver', 'assets/sounds/gameOver.ogg');
+        this.load.audio('gameStart', 'assets/sounds/gameStart.ogg');
+        this.load.audio('blast', 'assets/sounds/blast.ogg');
         this.load.audio('gameMusic', 'assets/sounds/spaceship_and_beyond.ogg');
+        this.load.audio('ship_destroyed', 'assets/sounds/ship_destroyed.ogg');
+        this.load.audio('item_collected', 'assets/sounds/item_collected.ogg');
+        this.load.audio('item_appear', 'assets/sounds/item_appear.ogg');
         
         // Create fallback graphics if assets fail to load
         this.load.on('loaderror', (file) => {

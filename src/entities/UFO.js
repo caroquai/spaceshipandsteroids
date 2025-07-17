@@ -12,9 +12,12 @@ export class UFO extends Phaser.Physics.Arcade.Sprite {
         
         // Movement
         this.speed = 150;
-        this.movementPattern = this.getRandomMovementPattern();
-        this.movementTimer = 0;
-        this.movementDuration = 5000; // 5 seconds per movement phase
+        this.zigzagSpeed = 120;
+        this.zigzagAmplitude = 200;
+        this.zigzagFrequency = 3.0;
+        this.zigzagTimer = 0;
+        this.movementDirection = 1; // 1 for right, -1 for left
+        this.zigzagPhase = 0; // Current phase of zig-zag movement
         
         // Visual effects
         this.rotationSpeed = 0; // No rotation
@@ -34,37 +37,30 @@ export class UFO extends Phaser.Physics.Arcade.Sprite {
         this.setupMovement();
     }
 
-    getRandomMovementPattern() {
-        // Only use left to right movement pattern
-        return 'leftToRight';
-    }
-
     setupMovement() {
+        // Start from top of screen, moving downward with zig-zag
         const width = this.scene.cameras.main.width;
-        const height = this.scene.cameras.main.height;
         
-        // Only left to right movement
-        if (this.x < width / 2) {
-            // UFO spawned from left side, move right
-            this.setVelocity(this.speed, 0);
-        } else {
-            // UFO spawned from right side, move left
-            this.setVelocity(-this.speed, 0);
-        }
+        // Set initial position at top of screen
+        this.x = Phaser.Math.Between(50, width - 50);
+        this.y = -50;
+        
+        // Set initial velocity (downward with slight zig-zag)
+        this.setVelocity(0, this.speed);
     }
 
     update(time, delta) {
         if (this.isDead) return;
 
-        // Update movement timer
-        this.movementTimer += delta;
-        if (this.movementTimer >= this.movementDuration) {
-            this.changeDirection();
-            this.movementTimer = 0;
-        }
-
-        // No rotation - keep UFO image static
-        // this.rotation += this.rotationSpeed * delta / 1000;
+        // Update zig-zag timer
+        this.zigzagTimer += delta * this.zigzagFrequency / 1000;
+        
+        // Calculate zig-zag movement
+        const zigzagOffset = Math.sin(this.zigzagTimer) * this.zigzagAmplitude;
+        const zigzagVelocity = Math.cos(this.zigzagTimer) * this.zigzagAmplitude * this.zigzagFrequency * 0.1;
+        
+        // Apply zig-zag movement while maintaining downward motion
+        this.setVelocity(zigzagVelocity, this.speed);
 
         // Update bobbing motion
         this.bobTimer += delta * this.bobSpeed / 1000;
@@ -74,20 +70,6 @@ export class UFO extends Phaser.Physics.Arcade.Sprite {
         // Check if off screen
         if (this.isOffScreen()) {
             this.destroy();
-        }
-    }
-
-    changeDirection() {
-        const width = this.scene.cameras.main.width;
-        const height = this.scene.cameras.main.height;
-        
-        // Reverse direction or change pattern
-        if (Math.random() < 0.3) {
-            this.movementPattern = this.getRandomMovementPattern();
-            this.setupMovement();
-        } else {
-            // Reverse current velocity
-            this.setVelocity(-this.body.velocity.x, -this.body.velocity.y);
         }
     }
 
@@ -200,7 +182,7 @@ export class UFO extends Phaser.Physics.Arcade.Sprite {
     }
 
     getScoreValue() {
-        return 200; // UFOs give more points than asteroids
+        return 200;
     }
 
     isActive() {

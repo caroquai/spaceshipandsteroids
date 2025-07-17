@@ -43,6 +43,8 @@ export class MenuScene extends Phaser.Scene {
             startButton.setStyle({ fill: '#ffffff', backgroundColor: '#4a90e2' });
         });
         startButton.on('pointerdown', () => {
+            // Play game start sound when user clicks start button
+            this.playSound('gameStart', 0.7);
             this.scene.start('GameScene');
         });
         
@@ -76,6 +78,8 @@ export class MenuScene extends Phaser.Scene {
         
         // Add keyboard support
         this.input.keyboard.on('keydown-SPACE', () => {
+            // Play game start sound when user presses space
+            this.playSound('gameStart', 0.7);
             this.scene.start('GameScene');
         });
     }
@@ -101,6 +105,16 @@ export class MenuScene extends Phaser.Scene {
                 repeat: -1,
                 ease: 'Sine.easeInOut'
             });
+        }
+    }
+    
+    playSound(key, volume = 1.0) {
+        try {
+            if (this.cache.audio.exists(key)) {
+                this.sound.play(key, { volume });
+            }
+        } catch (error) {
+            console.log(`Audio file '${key}' not available`);
         }
     }
 } 
