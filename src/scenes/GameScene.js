@@ -3,6 +3,7 @@ import { Asteroid } from '../entities/Asteroid.js';
 import { Bullet } from '../entities/Bullet.js';
 import { PowerUp } from '../entities/PowerUp.js';
 import { UFO } from '../entities/UFO.js';
+import { Boss } from '../entities/Boss.js';
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -14,6 +15,8 @@ export class GameScene extends Phaser.Scene {
         this.powerUps = null;
         this.ufos = null;
         this.particles = null;
+        this.boss = null;
+        this.bossGroup = null;
         
         this.scoreText = null;
         this.livesText = null;
@@ -29,6 +32,11 @@ export class GameScene extends Phaser.Scene {
         this.explainedPowerUps = new Set();
         this.gamePaused = false; // Custom pause flag
         
+        // Dynamic background system
+        this.venusBackground = null;
+        this.backgroundTransitionActive = false;
+        this.engineBoostActive = false;
+        
         this.cursors = null;
         this.fireKey = null;
         
@@ -40,6 +48,7 @@ export class GameScene extends Phaser.Scene {
         this.ufoSpawnInterval = 10000; // UFO spawn interval
         
         this.gameData = null;
+        this.bossStage = false;
     }
 
     create() {
@@ -164,6 +173,20 @@ export class GameScene extends Phaser.Scene {
                 });
             }
         });
+        
+        // Initialize Venus background (hidden initially)
+        this.venusBackground = this.add.image(
+            this.cameras.main.width / 2,
+            this.cameras.main.height + 300, // Start below screen
+            'venus_bg'
+        );
+        this.venusBackground.setScale(1);
+        this.venusBackground.setDepth(0); // Same depth as starfield but behind game objects
+        this.venusBackground.setVisible(false);
+        this.venusBackground.setAlpha(0.6); // More transparency to blend with stars
+        console.log('Venus background created:', this.venusBackground);
+        console.log('Venus background texture exists:', this.textures.exists('venus_bg'));
+        console.log('Venus background initial position:', this.venusBackground.x, this.venusBackground.y);
     }
 
     updateStarfield(delta) {
@@ -183,6 +206,12 @@ export class GameScene extends Phaser.Scene {
                 }
             });
         });
+        
+        // Update Venus background if it's visible and transitioning
+        if (this.venusBackground && this.venusBackground.visible && this.backgroundTransitionActive) {
+            // The background movement is handled by the tween animation
+            // This is just for any additional effects if needed
+        }
     }
 
     setupGroups() {
@@ -191,6 +220,8 @@ export class GameScene extends Phaser.Scene {
         this.powerUps = this.physics.add.group();
         this.ufos = this.physics.add.group();
         this.particles = this.add.group();
+        this.bossGroup = this.physics.add.group();
+        this.bossBullets = this.physics.add.group(); // Separate group for boss bullets
     }
 
     setupUI() {
@@ -294,20 +325,20 @@ export class GameScene extends Phaser.Scene {
         console.log('Overlay created:', this.avatarOverlay);
         console.log('this.avatarOverlay after assignment:', this.avatarOverlay);
         
-        // Create avatar sprite (will be positioned at bottom)
-        this.avatarSprite = this.add.image(width / 2, height + 200, 'lady');
+        // Create avatar sprite (positioned on the left side)
+        this.avatarSprite = this.add.image(150, height + 200, 'lady');
         this.avatarSprite.setScale(0.4);
         this.avatarSprite.setVisible(false);
         this.avatarSprite.setDepth(1001); // Set high depth to render on top
         
-        // Create text container
-        this.avatarText = this.add.text(width / 2, height - 150, '', {
+        // Create text container (positioned to the right of the avatar)
+        this.avatarText = this.add.text(350, height - 150, '', {
             fontSize: '20px',
             fill: '#ffffff',
-            align: 'center',
-            wordWrap: { width: width - 100 },
+            align: 'left',
+            wordWrap: { width: width - 400 }, // Reduced width to avoid overlap
             lineSpacing: 8
-        }).setOrigin(0.5);
+        }).setOrigin(0, 0.5); // Left-aligned text
         this.avatarText.setVisible(false);
         this.avatarText.setDepth(1002); // Set high depth to render on top
         
@@ -411,9 +442,9 @@ export class GameScene extends Phaser.Scene {
         console.log('Overlay alpha:', this.avatarOverlay.alpha);
         console.log('Overlay depth:', this.avatarOverlay.depth);
         
-        // Show avatar with slide-in animation
+        // Show avatar with slide-in animation (from left side)
         this.avatarSprite.setVisible(true);
-        this.avatarSprite.setPosition(width / 2, height + 200);
+        this.avatarSprite.setPosition(150, height + 200);
         console.log('Avatar sprite visible:', this.avatarSprite.visible);
         console.log('Avatar sprite position:', this.avatarSprite.x, this.avatarSprite.y);
         console.log('Avatar sprite depth:', this.avatarSprite.depth);
@@ -456,7 +487,7 @@ export class GameScene extends Phaser.Scene {
         // Add animations AFTER showing elements
         this.tweens.add({
             targets: this.avatarSprite,
-            y: height - 100,
+            y: height - 100, // Keep same vertical position
             duration: 800,
             ease: 'Power2'
         });
@@ -491,10 +522,10 @@ export class GameScene extends Phaser.Scene {
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
         
-        // Slide out avatar
+        // Slide out avatar to the left
         this.tweens.add({
             targets: this.avatarSprite,
-            y: height + 200,
+            x: -200, // Slide out to the left
             duration: 600,
             ease: 'Power2'
         });
@@ -531,6 +562,148 @@ export class GameScene extends Phaser.Scene {
         
         // Remove power-up highlight
         this.removePowerUpHighlight();
+    }
+    
+    startVenusBackgroundTransition() {
+        if (this.backgroundTransitionActive) return;
+        
+        console.log('Starting Venus background transition for level:', this.gameData.level);
+        this.backgroundTransitionActive = true;
+        
+        // Play Venus lady voice
+        this.playSound('venus_lady', 0.8);
+        
+        // Show Venus background
+        if (this.venusBackground) {
+            console.log('Venus background found, making visible');
+            this.venusBackground.setVisible(true);
+            this.venusBackground.setDepth(0); // Same depth as starfield but behind game objects
+            console.log('Venus background position:', this.venusBackground.x, this.venusBackground.y);
+            console.log('Venus background visible:', this.venusBackground.visible);
+            console.log('Venus background depth:', this.venusBackground.depth);
+        } else {
+            console.error('Venus background not found!');
+        }
+        
+        // Make starfield slightly more transparent to show Venus background
+        Object.values(this.starfieldLayers).forEach(layer => {
+            layer.getChildren().forEach(star => {
+                this.tweens.add({
+                    targets: star,
+                    alpha: 0.7, // Keep stars more visible (70% instead of 30%)
+                    duration: 1000,
+                    ease: 'Power2'
+                });
+            });
+        });
+        
+        // Start engine boost effect
+        this.startEngineBoostEffect();
+        
+        // Animate Venus background moving up
+        this.tweens.add({
+            targets: this.venusBackground,
+            y: this.cameras.main.height / 2,
+            duration: 4000, // 4 seconds to reach position
+            ease: 'Power2',
+            onComplete: () => {
+                this.backgroundTransitionActive = false;
+                this.stopEngineBoostEffect();
+                
+                // Restore stars to full brightness
+                Object.values(this.starfieldLayers).forEach(layer => {
+                    layer.getChildren().forEach(star => {
+                        this.tweens.add({
+                            targets: star,
+                            alpha: 1.0, // Full brightness
+                            duration: 500,
+                            ease: 'Power2'
+                        });
+                    });
+                });
+                
+                console.log('Venus background transition complete');
+            }
+        });
+    }
+    
+    startEngineBoostEffect() {
+        this.engineBoostActive = true;
+        
+        // Create intense engine boost particles
+        const boostTimer = this.time.addEvent({
+            delay: 50, // Every 50ms
+            callback: () => {
+                if (!this.engineBoostActive || !this.spaceship) return;
+                
+                // Create multiple boost particles
+                for (let i = 0; i < 8; i++) {
+                    const particle = this.add.circle(
+                        this.spaceship.x + Phaser.Math.Between(-15, 15),
+                        this.spaceship.y + 20 + Phaser.Math.Between(0, 10),
+                        Phaser.Math.FloatBetween(2, 6),
+                        0xff6600
+                    );
+                    
+                    // Add glow effect
+                    particle.setStrokeStyle(2, 0xffff00);
+                    
+                    // Animate particle
+                    this.tweens.add({
+                        targets: particle,
+                        y: particle.y + 60,
+                        x: particle.x + Phaser.Math.Between(-20, 20),
+                        scale: 0,
+                        alpha: 0,
+                        duration: Phaser.Math.Between(300, 600),
+                        ease: 'Power2',
+                        onComplete: () => {
+                            if (particle && particle.active) {
+                                particle.destroy();
+                            }
+                        }
+                    });
+                }
+                
+                // Create additional smaller particles
+                for (let i = 0; i < 15; i++) {
+                    const smallParticle = this.add.circle(
+                        this.spaceship.x + Phaser.Math.Between(-10, 10),
+                        this.spaceship.y + 25 + Phaser.Math.Between(0, 15),
+                        Phaser.Math.FloatBetween(1, 3),
+                        0xffff00
+                    );
+                    
+                    this.tweens.add({
+                        targets: smallParticle,
+                        y: smallParticle.y + 40,
+                        x: smallParticle.x + Phaser.Math.Between(-15, 15),
+                        scale: 0,
+                        alpha: 0,
+                        duration: Phaser.Math.Between(200, 400),
+                        ease: 'Power2',
+                        onComplete: () => {
+                            if (smallParticle && smallParticle.active) {
+                                smallParticle.destroy();
+                            }
+                        }
+                    });
+                }
+            },
+            loop: true
+        });
+        
+        // Store timer for cleanup
+        this.engineBoostTimer = boostTimer;
+    }
+    
+    stopEngineBoostEffect() {
+        this.engineBoostActive = false;
+        
+        if (this.engineBoostTimer) {
+            this.engineBoostTimer.destroy();
+            this.engineBoostTimer = null;
+        }
     }
 
     getPowerUpExplanation(powerUpType) {
@@ -601,6 +774,12 @@ export class GameScene extends Phaser.Scene {
         
         // Set up fire events
         this.input.keyboard.on('keydown-SPACE', () => {
+            // Check if avatar tutorial is active first
+            if (this.avatarActive) {
+                this.hideAvatarTutorial();
+                return;
+            }
+            
             this.isFireKeyPressed = true;
             if (this.canFire && this.spaceship && this.spaceship.canControl && !this.spaceship.entranceAnimationActive && !this.spaceship.rapidFireEndTime) {
                 this.spaceship.fire(); // Use spaceship's fire method instead
@@ -612,6 +791,12 @@ export class GameScene extends Phaser.Scene {
         this.input.keyboard.on('keyup-SPACE', () => {
             this.isFireKeyPressed = false;
             this.canFire = true;
+        });
+        
+        // Add V key for testing Venus background
+        this.input.keyboard.on('keydown-V', () => {
+            console.log('V key pressed - testing Venus background');
+            this.startVenusBackgroundTransition();
         });
     }
 
@@ -634,6 +819,22 @@ export class GameScene extends Phaser.Scene {
                 
                 // Bullets vs UFOs
                 this.physics.add.overlap(this.bullets, this.ufos, this.handleBulletUFOCollision, null, this);
+            }
+            
+            // Boss collisions (only if boss exists)
+            if (this.bossGroup) {
+                // Bullets vs Boss
+                this.physics.add.overlap(this.bullets, this.bossGroup, this.handleBulletBossCollision, null, this);
+            }
+            
+            // Boss bullets vs Spaceship (only if boss bullets exist)
+            if (this.bossBullets) {
+                this.physics.add.overlap(this.spaceship, this.bossBullets, this.handleSpaceshipBossBulletCollision, null, this);
+            }
+            
+            // Bullets vs Boss Bullets (only if boss bullets exist)
+            if (this.bossBullets) {
+                this.physics.add.overlap(this.bullets, this.bossBullets, this.handleBulletBossBulletCollision, null, this);
             }
         }
     }
@@ -940,6 +1141,10 @@ export class GameScene extends Phaser.Scene {
                 this.playSound('skyler_speed', 0.8);
             } else if (powerUpType === 'strongLaser') {
                 this.playSound('skyler_stronglaser', 0.8);
+            } else if (powerUpType === 'napalmBomb') {
+                this.playSound('skyler_mysterious', 0.8);
+            } else if (powerUpType === 'supportShips') {
+                this.playSound('skyler_mysterious', 0.8);
             }
         }
         
@@ -1027,35 +1232,40 @@ export class GameScene extends Phaser.Scene {
         // Update starfield movement
         this.updateStarfield(delta);
         
-        // Update spawn timers
-        this.asteroidSpawnTimer += delta;
-        this.powerUpSpawnTimer += delta;
-        this.ufoSpawnTimer += delta;
-        
-        // Spawn new asteroids
-        if (this.asteroidSpawnTimer >= this.asteroidSpawnInterval) {
-            this.spawnAsteroid();
-            this.asteroidSpawnTimer = 0;
-        }
-        
-        // Spawn power-ups
-        if (this.powerUpSpawnTimer >= this.powerUpSpawnInterval) {
-            this.spawnPowerUp();
-            this.powerUpSpawnTimer = 0;
-        }
-        
-        // Spawn UFOs (only from stage 2)
-        if (this.gameData.level >= 2 && this.ufoSpawnTimer >= this.ufoSpawnInterval) {
-            this.spawnUFO();
-            this.ufoSpawnTimer = 0;
+        // Update spawn timers (only if not in boss stage)
+        if (!this.bossStage) {
+            this.asteroidSpawnTimer += delta;
+            this.powerUpSpawnTimer += delta;
+            this.ufoSpawnTimer += delta;
             
-            // Increase UFO spawn frequency with level
-            if (this.gameData.level >= 4) {
-                // More aggressive spawn rate after stage 4
-                this.ufoSpawnInterval = Math.max(2000, 8000 - (this.gameData.level - 4) * 800);
-            } else {
-                // Normal spawn rate for stages 2-3
-                this.ufoSpawnInterval = Math.max(5000, 10000 - (this.gameData.level - 2) * 500);
+            // Spawn new asteroids
+            if (this.asteroidSpawnTimer >= this.asteroidSpawnInterval) {
+                this.spawnAsteroid();
+                this.asteroidSpawnTimer = 0;
+            }
+            
+            // Spawn power-ups
+            if (this.powerUpSpawnTimer >= this.powerUpSpawnInterval) {
+                this.spawnPowerUp();
+                this.powerUpSpawnTimer = 0;
+            }
+            
+            // Spawn UFOs (only from stage 2)
+            if (this.gameData.level >= 2 && this.ufoSpawnTimer >= this.ufoSpawnInterval) {
+                this.spawnUFO();
+                this.ufoSpawnTimer = 0;
+                
+                // Increase UFO spawn frequency with level (more generous for stages 6-10)
+                if (this.gameData.level >= 6 && this.gameData.level <= 10) {
+                    // Gentler UFO spawn rate for Venus stages
+                    this.ufoSpawnInterval = Math.max(6000, 10000 - (this.gameData.level - 6) * 400);
+                } else if (this.gameData.level >= 4) {
+                    // More aggressive spawn rate after stage 4 (but not for Venus stages)
+                    this.ufoSpawnInterval = Math.max(2000, 8000 - (this.gameData.level - 4) * 800);
+                } else {
+                    // Normal spawn rate for stages 2-3
+                    this.ufoSpawnInterval = Math.max(5000, 10000 - (this.gameData.level - 2) * 500);
+                }
             }
         }
         
@@ -1086,6 +1296,20 @@ export class GameScene extends Phaser.Scene {
                 ufo.update(time, delta);
             }
         });
+        
+        // Update boss bullets
+        if (this.bossBullets) {
+            this.bossBullets.getChildren().forEach(bullet => {
+                if (bullet && bullet.update) {
+                    bullet.update(time, delta);
+                }
+            });
+        }
+        
+        // Update boss
+        if (this.boss && this.boss.update) {
+            this.boss.update(time, delta);
+        }
         
         // Handle input
         this.handleInput();
@@ -1392,6 +1616,58 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
+    handleBulletBossCollision(bullet, boss) {
+        if (!bullet || !boss || bullet.isDead || boss.isDead) return;
+        
+        // Destroy the bullet
+        bullet.destroy();
+        
+        // Deal damage to boss
+        boss.takeDamage(1);
+        
+        // Add score for hitting boss
+        this.gameData.score += 10;
+        this.game.registry.set('gameData', this.gameData);
+    }
+    
+    handleSpaceshipBossBulletCollision(spaceship, bossBullet) {
+        if (!spaceship || !bossBullet || spaceship.isDead || bossBullet.isDead) return;
+        
+        // Destroy boss bullet
+        bossBullet.destroy();
+        
+        // Check if spaceship has shield
+        if (spaceship.hasShield) {
+            // Create shield absorb effect
+            this.createShieldAbsorbEffect(spaceship.x, spaceship.y);
+            this.playSound('shield_absorb', 0.4);
+            return; // Shield protects from damage
+        }
+        
+        // Spaceship takes damage
+        spaceship.takeDamage();
+        
+        // Create explosion effect
+        this.createExplosion(spaceship.x, spaceship.y);
+        
+        // Play sound
+        this.playSound('ship_destroyed', 0.5);
+    }
+    
+    handleBulletBossBulletCollision(bullet, bossBullet) {
+        if (!bullet || !bossBullet || bullet.isDead || bossBullet.isDead) return;
+        
+        // Destroy player bullet
+        bullet.destroy();
+        
+        // Destroy boss bullet
+        bossBullet.takeDamage();
+        
+        // Add score
+        this.gameData.score += bossBullet.getScoreValue();
+        this.game.registry.set('gameData', this.gameData);
+    }
+
     createExplosion(x, y) {
         // Create simple explosion effect without particles for now
         // Create multiple small circles that fade out
@@ -1488,8 +1764,42 @@ export class GameScene extends Phaser.Scene {
         
         this.playSound('levelUp', 0.6);
         
-        // Increase difficulty
-        this.asteroidSpawnInterval = Math.max(500, this.asteroidSpawnInterval - 100);
+        // Check if this is stage 5 (boss stage)
+        if (this.gameData.level === 5) {
+            this.startBossStage();
+            return;
+        }
+        
+        // Check if this is stages 6-10 (Venus background stages)
+        if (this.gameData.level >= 6 && this.gameData.level <= 10) {
+            // Start Venus background transition
+            this.startVenusBackgroundTransition();
+        }
+        
+        // Handle difficulty scaling for different stages
+        if (this.gameData.level >= 6 && this.gameData.level <= 10) {
+            // Venus stages: Reset to stage 3 difficulty, then gradually increase
+            if (this.gameData.level === 6) {
+                // Reset to stage 3 difficulty (1500ms spawn interval)
+                this.asteroidSpawnInterval = 1500;
+                this.ufoSpawnInterval = 12000; // Stage 3 UFO spawn rate
+                this.powerUpSpawnInterval = 8000; // Stage 3 power-up rate
+            } else {
+                // Gradually increase difficulty from stage 6 onwards
+                const stageOffset = this.gameData.level - 6;
+                this.asteroidSpawnInterval = Math.max(800, 1500 - (stageOffset * 100));
+                this.ufoSpawnInterval = Math.max(6000, 12000 - (stageOffset * 1000));
+                this.powerUpSpawnInterval = Math.max(4000, 8000 - (stageOffset * 500));
+            }
+        } else {
+            // Normal difficulty increase for other stages
+            this.asteroidSpawnInterval = Math.max(500, this.asteroidSpawnInterval - 100);
+            
+            // Adjust UFO spawn interval for normal stages
+            if (this.gameData.level >= 2) {
+                this.ufoSpawnInterval = Math.max(5000, 10000 - (this.gameData.level - 2) * 500);
+            }
+        }
         
         // Smooth stage transition instead of clearing everything
         this.startSmoothStageTransition();
@@ -1499,13 +1809,149 @@ export class GameScene extends Phaser.Scene {
             this.ufos.clear(true, true);
         }
         
-        // Adjust UFO spawn interval for new level
-        if (this.gameData.level >= 2) {
-            this.ufoSpawnInterval = Math.max(5000, 10000 - (this.gameData.level - 2) * 500);
-        }
-        
         // Show level up effect
         this.createLevelUpEffect();
+    }
+
+    startBossStage() {
+        this.bossStage = true;
+        
+        // Gradually remove all sprites
+        this.graduallyRemoveSprites();
+        
+        // Play boss sound
+        this.playSound('boss_appear', 0.7);
+        
+        // Spawn boss after a delay
+        this.time.delayedCall(2000, () => {
+            this.spawnBoss();
+        });
+    }
+
+    graduallyRemoveSprites() {
+        // Get all existing entities
+        const asteroids = this.asteroids.getChildren();
+        const ufos = this.ufos.getChildren();
+        const powerUps = this.powerUps.getChildren();
+        
+        // Gradually fade out asteroids
+        asteroids.forEach((asteroid, index) => {
+            const delay = (index / asteroids.length) * 1500;
+            this.time.delayedCall(delay, () => {
+                if (asteroid && asteroid.active) {
+                    this.tweens.add({
+                        targets: asteroid,
+                        alpha: 0,
+                        scale: 0.5,
+                        duration: 800,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            if (asteroid && asteroid.active) {
+                                asteroid.destroy();
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        
+        // Clear UFOs and power-ups immediately
+        this.ufos.clear(true, true);
+        this.powerUps.clear(true, true);
+    }
+
+    spawnBoss() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        // Play boss lady voice sound
+        this.playSound('boss_ladyvoice_1', 0.8);
+        
+        // Create boss at top of screen
+        this.boss = new Boss(this, width / 2, -100);
+        this.bossGroup.add(this.boss);
+        
+        // Add boss to scene's display list
+        this.add.existing(this.boss);
+    }
+
+    completeBossStage() {
+        // Create warp effect
+        this.createWarpEffect();
+        
+        // Play boss completion sound
+        this.playSound('winning_stage', 0.8);
+        
+        // Transition to stage 6 after warp effect
+        this.time.delayedCall(3000, () => {
+            this.bossStage = false;
+            this.gameData.level = 6;
+            this.game.registry.set('gameData', this.gameData);
+            
+            // Clear boss
+            if (this.boss) {
+                this.boss.destroy();
+                this.boss = null;
+            }
+            
+            // Start normal stage 6
+            this.startSmoothStageTransition();
+        });
+    }
+
+    createWarpEffect() {
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        
+        // Create multiple expanding circles for warp effect
+        for (let i = 0; i < 5; i++) {
+            const circle = this.add.circle(
+                width / 2,
+                height / 2,
+                10,
+                0x00ffff,
+                0.8
+            );
+            
+            this.tweens.add({
+                targets: circle,
+                radius: Math.max(width, height),
+                alpha: 0,
+                duration: 2000,
+                delay: i * 200,
+                ease: 'Power2',
+                onComplete: () => {
+                    if (circle && circle.active) {
+                        circle.destroy();
+                    }
+                }
+            });
+        }
+        
+        // Add some particle effects
+        for (let i = 0; i < 50; i++) {
+            const particle = this.add.circle(
+                Phaser.Math.Between(0, width),
+                Phaser.Math.Between(0, height),
+                Phaser.Math.FloatBetween(1, 4),
+                0x00ffff
+            );
+            
+            this.tweens.add({
+                targets: particle,
+                x: width / 2,
+                y: height / 2,
+                scale: 0,
+                alpha: 0,
+                duration: 2000,
+                ease: 'Power2',
+                onComplete: () => {
+                    if (particle && particle.active) {
+                        particle.destroy();
+                    }
+                }
+            });
+        }
     }
 
     startSmoothStageTransition() {
@@ -1775,6 +2221,9 @@ export class GameScene extends Phaser.Scene {
         }
         
         this.game.registry.set('gameData', this.gameData);
+        
+        // Stop engine boost effect if active
+        this.stopEngineBoostEffect();
         
         // Stop all game sounds except background music
         // Note: game over sound is already playing from collision handler

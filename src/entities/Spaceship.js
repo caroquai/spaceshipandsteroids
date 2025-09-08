@@ -36,6 +36,8 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
         this.speedBoostEndTime = 0;
         this.strongLaserEndTime = 0;
         this.tripleShotEndTime = 0;
+        this.supportShipsEndTime = 0;
+        this.supportShips = [];
         
         // Visual effects
         this.engineTrailTimer = 0;
@@ -92,6 +94,9 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
         if (this.shieldHalo && this.shieldHalo.active) {
             this.shieldHalo.setPosition(this.x, this.y);
         }
+        
+        // Update support ships
+        this.updateSupportShips();
     }
 
     updatePowerUpVisuals(time) {
@@ -197,6 +202,9 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
         if (time - this.lastFireTime < this.fireRate) return;
 
         this.lastFireTime = time;
+        
+        // Fire support ships if active
+        this.fireSupportShips();
         
         // Check if triple shot is active
         if (this.tripleShotEndTime && this.tripleShotEndTime > time) {
@@ -403,6 +411,16 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
         });
     }
 
+    activateSupportShips(duration = 15000) {
+        this.supportShipsEndTime = this.scene.time.now + duration;
+        this.createSupportShips();
+        
+        this.scene.time.delayedCall(duration, () => {
+            this.supportShipsEndTime = 0;
+            this.removeSupportShips();
+        });
+    }
+
     createStrongLaserEffect() {
         // Create strong laser activation effect
         const effect = this.scene.add.circle(
@@ -586,5 +604,105 @@ export class Spaceship extends Phaser.Physics.Arcade.Sprite {
 
     isInvulnerable() {
         return this.invulnerable;
+    }
+
+    createSupportShips() {
+        // Remove any existing support ships
+        this.removeSupportShips();
+        
+        // Create two support ships on left and right
+        for (let i = 0; i < 2; i++) {
+            const supportShip = this.scene.add.image(
+                this.x + (i === 0 ? -35 : 35), // Left and right positions
+                this.y,
+                'support_ship' // Use support_ship texture
+            );
+            
+            supportShip.setScale(0.6); // Smaller than main ship
+            supportShip.setTint(0xffffff); // No tint - use natural texture color
+            supportShip.setAlpha(0.9);
+            
+            // Add to support ships array
+            this.supportShips.push(supportShip);
+        }
+        
+        // Create activation effect
+        const effect = this.scene.add.circle(
+            this.x,
+            this.y,
+            50,
+            0x00ffff,
+            0.3
+        );
+        
+        this.scene.tweens.add({
+            targets: effect,
+            scale: 2,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power2',
+            onComplete: () => {
+                effect.destroy();
+            }
+        });
+    }
+
+    removeSupportShips() {
+        this.supportShips.forEach(ship => {
+            if (ship && ship.active) {
+                this.scene.tweens.add({
+                    targets: ship,
+                    scale: 0,
+                    alpha: 0,
+                    duration: 300,
+                    ease: 'Power2',
+                    onComplete: () => {
+                        ship.destroy();
+                    }
+                });
+            }
+        });
+        this.supportShips = [];
+    }
+
+    updateSupportShips() {
+        if (this.supportShipsEndTime && this.scene.time.now < this.supportShipsEndTime) {
+            // Update support ship positions to stay on left and right
+            this.supportShips.forEach((ship, index) => {
+                if (ship && ship.active) {
+                    // Position on left and right of main ship
+                    ship.x = this.x + (index === 0 ? -35 : 35);
+                    ship.y = this.y;
+                    ship.rotation = 0; // Keep pointing upward
+                }
+            });
+        }
+    }
+
+    fireSupportShips() {
+        if (this.supportShipsEndTime && this.scene.time.now < this.supportShipsEndTime) {
+            this.supportShips.forEach((ship, index) => {
+                if (ship && ship.active) {
+                    // Create bullet directly in the physics group (same as main ship)
+                    const bullet = this.scene.bullets.create(ship.x, ship.y - 10, 'bullet');
+                    
+                    // Set up bullet properties
+                    bullet.setCircle(6);
+                    bullet.setCollideWorldBounds(false);
+                    bullet.body.setEnable(true);
+                    
+                    // Set bullet properties for support ship
+                    bullet.setScale(0.8); // Slightly smaller than main ship bullets
+                    bullet.setTint(0x00ffff); // Cyan bullets for support ships
+                    bullet.isStrongLaser = false;
+                    
+                    // Set bullet velocity
+                    bullet.setVelocity(0, -this.bulletSpeed);
+                    
+                    // Play sound
+                    this.playSound('laser_standard', 0.3);
+                }
+            });
+        }
     }
 } 

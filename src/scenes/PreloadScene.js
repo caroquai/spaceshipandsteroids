@@ -93,6 +93,11 @@ export class PreloadScene extends Phaser.Scene {
         this.load.image('background', 'assets/sprites/background.png');
         this.load.image('lady', 'assets/sprites/lady.png');
         this.load.image('item_speed', 'assets/sprites/item_speed.png');
+        this.load.image('boss_green', 'assets/sprites/5_boss_green.png');
+        this.load.image('boss_defeated', 'assets/sprites/5_boss_defeated.png');
+        this.load.image('boss_rocket', 'assets/sprites/boss_rocket.png');
+        this.load.image('support_ship', 'assets/sprites/support_ship.png');
+        this.load.image('venus_bg', 'assets/sprites/venus_bg.png');
         
         // Load sounds (optional - game will work without them)
         this.load.audio('laser_normal', 'assets/sounds/laser_standard.ogg');
@@ -115,6 +120,10 @@ export class PreloadScene extends Phaser.Scene {
         this.load.audio('ship_destroyed', 'assets/sounds/ship_destroyed.ogg');
         this.load.audio('item_collected', 'assets/sounds/item_collected.ogg');
         this.load.audio('item_appear', 'assets/sounds/item_appear.ogg');
+        this.load.audio('boss_appear', 'assets/sounds/boss_appear.ogg');
+        this.load.audio('boss_ladyvoice_1', 'assets/sounds/boss_ladyvoice_1.ogg');
+        this.load.audio('venus_lady', 'assets/sounds/venus_lady.ogg');
+        this.load.audio('winning_stage', 'assets/sounds/winning_stage.ogg');
         
         // Create fallback graphics if assets fail to load
         this.load.on('loaderror', (file) => {
@@ -200,6 +209,42 @@ export class PreloadScene extends Phaser.Scene {
                     );
                 }
                 graphics.generateTexture('background', 800, 600);
+                break;
+            case 'venus_bg':
+                // Create Venus background fallback
+                // Dark space background
+                graphics.fillStyle(0x000022);
+                graphics.fillRect(0, 0, 800, 600);
+                
+                // Venus planet (large orange/yellow circle)
+                graphics.fillStyle(0xff8c00); // Orange
+                graphics.fillCircle(600, 200, 120);
+                
+                // Venus atmosphere glow
+                graphics.fillStyle(0xffa500, 0.3); // Semi-transparent orange
+                graphics.fillCircle(600, 200, 140);
+                
+                // Venus surface details
+                graphics.fillStyle(0xff6b35); // Darker orange
+                graphics.fillCircle(580, 180, 80);
+                graphics.fillCircle(620, 220, 60);
+                
+                // Add some cloud-like features
+                graphics.fillStyle(0xffd700, 0.4); // Golden clouds
+                graphics.fillEllipse(590, 190, 40, 20);
+                graphics.fillEllipse(610, 210, 30, 15);
+                
+                // Add distant stars
+                graphics.fillStyle(0xffffff);
+                for (let i = 0; i < 30; i++) {
+                    graphics.fillCircle(
+                        Math.random() * 800,
+                        Math.random() * 600,
+                        Math.random() * 1.5
+                    );
+                }
+                
+                graphics.generateTexture('venus_bg', 800, 600);
                 break;
             case 'lady':
                 // Create lady avatar fallback - simple character silhouette
