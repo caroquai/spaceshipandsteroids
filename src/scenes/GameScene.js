@@ -781,7 +781,7 @@ export class GameScene extends Phaser.Scene {
             }
             
             this.isFireKeyPressed = true;
-            if (this.canFire && this.spaceship && this.spaceship.canControl && !this.spaceship.entranceAnimationActive && !this.spaceship.rapidFireEndTime) {
+            if (this.canFire && this.spaceship && this.spaceship.canControl && !this.spaceship.entranceAnimationActive && !this.spaceship.rapidFireEndTime && !this.spaceship.isDead) {
                 this.spaceship.fire(); // Use spaceship's fire method instead
                 this.canFire = false;
             }
@@ -1647,11 +1647,23 @@ export class GameScene extends Phaser.Scene {
         // Spaceship takes damage
         spaceship.takeDamage();
         
+        // Update game lives to match ship health
+        this.gameData.lives = spaceship.getHealth();
+        this.game.registry.set('gameData', this.gameData);
+        
+        console.log(`Ship hit by boss bullet! Lives remaining: ${this.gameData.lives}`);
+        
         // Create explosion effect
         this.createExplosion(spaceship.x, spaceship.y);
         
         // Play sound
-        this.playSound('ship_destroyed', 0.5);
+        this.playSound('blast', 0.6);
+        
+        // Check if game over
+        if (this.gameData.lives <= 0) {
+            this.playSound('ship_destroyed', 0.7);
+            this.gameOver();
+        }
     }
     
     handleBulletBossBulletCollision(bullet, bossBullet) {

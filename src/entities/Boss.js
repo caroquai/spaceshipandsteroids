@@ -12,19 +12,19 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
         this.phase = 1; // 1: normal, 2: aggressive (25% HP)
         
         // Robot movement properties
-        this.moveSpeed = 100; // Faster base movement
+        this.moveSpeed = 200; // Increased from 100 - faster base movement
         this.moveDirection = 1; // 1 for right, -1 for left
-        this.verticalSpeed = 50; // Faster vertical movement
+        this.verticalSpeed = 100; // Increased from 50 - faster vertical movement
         this.verticalDirection = 1;
-        this.aggressiveMoveSpeed = 150; // Much faster when aggressive
-        this.aggressiveVerticalSpeed = 80; // Faster vertical when aggressive
+        this.aggressiveMoveSpeed = 300; // Increased from 150 - much faster when aggressive
+        this.aggressiveVerticalSpeed = 150; // Increased from 80 - faster vertical when aggressive
         
         // Robot-specific properties
         this.robotSegments = 4; // Number of movement segments
         this.currentSegment = 0;
         this.segmentTimer = 0;
-        this.segmentDuration = 800; // Time per movement segment (ms)
-        this.aggressiveSegmentDuration = 500; // Faster segments when aggressive
+        this.segmentDuration = 400; // Reduced from 800 - faster direction changes
+        this.aggressiveSegmentDuration = 250; // Reduced from 500 - much faster when aggressive
         
         // Robot visual effects
         this.robotGlow = null;
@@ -34,8 +34,13 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
         
         // Shooting properties
         this.shootTimer = 0;
-        this.shootInterval = 1800; // 1.8 seconds between shots (faster)
-        this.aggressiveShootInterval = 1000; // 1 second when aggressive (much faster)
+        this.shootInterval = 1200; // Reduced from 1800 - 1.2 seconds between shots
+        this.aggressiveShootInterval = 600; // Reduced from 1000 - 0.6 seconds when aggressive
+        
+        // Single rocket shooting system
+        this.rocketCounter = 0;
+        this.rocketPositions = [-30, 0, 30]; // Phase 1 positions
+        this.aggressiveRocketPositions = [-40, -20, 0, 20, 40]; // Phase 2 positions
         
         // Visual properties
         this.hpBar = null;
@@ -188,8 +193,8 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
         
         // Robot-like movement with discrete steps
         const stepSize = 2; // Pixels per step
-        this.x += moveSpeed * this.moveDirection * 0.1;
-        this.y += verticalSpeed * this.verticalDirection * 0.05;
+        this.x += moveSpeed * this.moveDirection * 0.3; // Increased from 0.1 to 0.3
+        this.y += verticalSpeed * this.verticalDirection * 0.2; // Increased from 0.05 to 0.2
         
         // Keep boss within bounds
         if (this.x <= 100 || this.x >= width - 100) {
@@ -321,39 +326,27 @@ export class Boss extends Phaser.Physics.Arcade.Sprite {
         
         const rocketSpeed = this.phase === 1 ? 250 : 350;
         
-        if (this.phase === 1) {
-            // Phase 1: 3 rockets in a spread pattern
-            const spreadPositions = [-30, 0, 30]; // Horizontal spread
-            
-            spreadPositions.forEach(offset => {
-                // Create boss rocket
-                const rocket = new BossRocket(this.scene, this.x + offset, this.y, rocketSpeed);
-                
-                // Add to scene's boss bullets group
-                if (this.scene.bossBullets) {
-                    this.scene.bossBullets.add(rocket);
-                }
-                
-                // Debug: Log rocket creation
-                console.log(`Boss rocket created: x=${this.x + offset}, speed=${rocketSpeed}`);
-            });
+        // Get current positions array based on phase
+        const positions = this.phase === 1 ? this.rocketPositions : this.aggressiveRocketPositions;
+        
+        // Get current position offset
+        const offset = positions[this.rocketCounter];
+        
+        console.log(`Boss shooting single rocket! Phase: ${this.phase}, Position: ${this.rocketCounter}/${positions.length-1}, Offset: ${offset}, Speed: ${rocketSpeed}`);
+        
+        // Create single boss rocket
+        const rocket = new BossRocket(this.scene, this.x + offset, this.y, rocketSpeed);
+        
+        // Add to scene's boss bullets group
+        if (this.scene.bossBullets) {
+            this.scene.bossBullets.add(rocket);
+            console.log(`Boss rocket added to group: x=${this.x + offset}, y=${this.y}, speed=${rocketSpeed}`);
         } else {
-            // Phase 2: Aggressive - 5 rockets in a wider spread
-            const aggressivePositions = [-40, -20, 0, 20, 40]; // Wider spread
-            
-            aggressivePositions.forEach(offset => {
-                // Create boss rocket
-                const rocket = new BossRocket(this.scene, this.x + offset, this.y, rocketSpeed);
-                
-                // Add to scene's boss bullets group
-                if (this.scene.bossBullets) {
-                    this.scene.bossBullets.add(rocket);
-                }
-                
-                // Debug: Log rocket creation
-                console.log(`Boss rocket created (aggressive): x=${this.x + offset}, speed=${rocketSpeed}`);
-            });
+            console.error('Boss bullets group not found!');
         }
+        
+        // Move to next position for next shot
+        this.rocketCounter = (this.rocketCounter + 1) % positions.length;
         
         // Create shooting effect
         this.createShootingEffect();
